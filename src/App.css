@@ -1,0 +1,132 @@
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* stop scroll bars */
+  background: #000; /* fallback while the canvas boots */
+  font-family: system-ui, sans-serif;
+  color: #fff;
+}
+
+/* === Canvas fills the viewport === */
+.three-bg {
+  position: fixed; /* sits behind everything */
+  inset: 0; /* top right bottom left = 0 */
+  z-index: 0; /* lower than overlay */
+}
+
+/* === Overlay holds the UI === */
+.overlay {
+  position: fixed;
+  top: 2rem;
+  left: 2rem;
+  z-index: 10;
+  max-width: 320px;
+  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1.8rem 2.2rem;
+  border-radius: 12px;
+}
+
+.overlay h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.overlay small {
+  opacity: 0.7;
+}
+
+.nav {
+  margin-top: 1rem;
+}
+
+.nav button {
+  background: transparent;
+  border: 1px solid #369;
+  color: #fff;
+  padding: 0.4rem 0.8rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* ----- HUD container ----- */
+.overlay {
+  position: fixed;
+  top: 17%; /* vertical placement */
+  right: 6%; /* anchor to right edge */
+  left: auto;
+  transform: none; /* kill previous translateX */
+  width: 420px; /* tall narrow column */
+  text-align: left;
+  pointer-events: none;
+  color: #e8e8e8;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+}
+
+.overlay h1 {
+  font-size: 3rem;
+  margin: 0 0 0.2rem 0;
+}
+.overlay small {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.overlay .today,
+.overlay .cosmic {
+  font-family: "Crimson Text", serif;
+  font-size: 1.15rem;
+  line-height: 1.55;
+}
+
+.overlay .cosmic {
+  margin-top: 1rem;
+  font-style: italic;
+  background: linear-gradient(90deg, #ffd794, #ffb74d 50%, #ffd794);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+/* ===== Left / right nav arrows ===== */
+.nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2.2rem;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  z-index: 15; /* above canvas */
+  pointer-events: all; /* re-enable clicks */
+}
+
+.nav:hover {
+  opacity: 1;
+}
+.nav.left {
+  left: 1rem;
+}
+.nav.right {
+  right: 1rem;
+}
+/* optional: hide arrow tap-highlight on mobile */
+.nav:focus {
+  outline: none;
+}
+
+.three-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/textures/nebula.jpg") center / cover no-repeat;
+  z-index: -1; /* stays under the canvas */
+  filter: brightness(0.9); /* optional darken so stars pop */
+}
