@@ -1,15 +1,21 @@
 import { Suspense, useEffect, useState } from "react";
-import ConstellationCanvas from "./components/ConstellationCanvas";
-import { horoscopes } from "./data/zodiac";
-import { useSpring, a as aHtml } from "@react-spring/web";
+import { useNavigate } from "react-router-dom";
+import { useSpring, animated } from "@react-spring/web";
 import { Environment } from "@react-three/drei";
-
-import "./App.css";
-
-import IntroScene from "./components/IntroScene";
 import { useLoader } from "@react-three/fiber";
 import { TextureLoader } from "three";
+
+import ConstellationCanvas from "./components/ConstellationCanvas";
+import { horoscopes } from "./data/zodiac";
+import IntroScene from "./components/IntroScene";
 import NebulaEnvironment from "./components/NebulaEnvironment";
+import TarotCard from "./features/tarot/TarotCard";
+import MainLayout from "./layouts/MainLayout";
+import { ZodiacSign } from "./types/tarot";
+import { TAROT_FOR_SIGN } from "./data/tarotMap";
+
+
+import "./styles/App.css";
 
 export function getTodayIndex() {
   const m = new Date().getMonth() + 1; // 1‑12
@@ -39,7 +45,7 @@ export function getTodayIndex() {
 }
 
 export default function App() {
-  // usePreloadNebula();
+  const navigate = useNavigate();
   const [introDone, setIntroDone] = useState(false);
   const [idx, setIdx] = useState(getTodayIndex());
   const signInfo = horoscopes[idx];
@@ -47,9 +53,8 @@ export default function App() {
   const prev = () => setIdx((idx - 1 + horoscopes.length) % horoscopes.length);
   const next = () => setIdx((idx + 1) % horoscopes.length);
 
-  /* 🌟 HUD opacity springs on idx change */
   const fade = useSpring({
-    key: idx, // restart animation on every new sign
+    key: idx,
     from: { opacity: 0 },
     to: { opacity: 1 },
     config: { tension: 120, friction: 22 },
@@ -64,39 +69,13 @@ export default function App() {
     return () => window.removeEventListener("keydown", handle);
   }, []);
 
-  //   <>
-  //     {/* 3-D backdrop */}
-  //     <div className="three-bg">
-  //       <ConstellationCanvas active={signInfo.name} />
-  //     </div>
-
-  //     {/* HUD */}
-  //     <div className="overlay">
-  //       <h1>{signInfo.name}</h1>
-  //       <small>{signInfo.dates}</small>
-
-  //       <p className="today">{signInfo.today}</p>
-  //       <p className="cosmic">{signInfo.cosmicTip}</p>
-  //     </div>
-
-  //     {/* nav arrows */}
-  //     <button className="nav left" onClick={prev}>
-  //       ◀︎
-  //     </button>
-  //     <button className="nav right" onClick={next}>
-  //       ▶︎
-  //     </button>
-  //   </>
-  // );
-
   return (
-    <>
+    <MainLayout>
       <div className="three-bg">
         {!introDone && <IntroScene onDone={() => setIntroDone(true)} />}
         {introDone && <ConstellationCanvas active={signInfo.name} />}
       </div>
 
-      {/* nav arrows (unchanged) */}
       <button className="nav left" onClick={prev}>
         ◀︎
       </button>
@@ -105,14 +84,19 @@ export default function App() {
       </button>
 
       {introDone && (
-        <aHtml.div style={fade as any} className="overlay">
-          {/* ✅ cast */}
+        <div className="overlay" style={{ opacity: 1 }}>
           <h1>{signInfo.name}</h1>
           <small>{signInfo.dates}</small>
           <p className="today">{signInfo.today}</p>
           <p className="cosmic">{signInfo.cosmicTip}</p>
-        </aHtml.div>
+          <div style={{ textAlign: "center", margin: "1.5rem 0" }}>
+            <TarotCard
+              src={`/assets/tarot/${TAROT_FOR_SIGN[signInfo.name]}`}
+              onClick={() => navigate(`/card/${signInfo.name.toLowerCase()}`)}
+            />
+          </div>
+        </div>
       )}
-    </>
+    </MainLayout>
   );
 }
