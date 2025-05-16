@@ -1,6 +1,5 @@
 import {  useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSpring } from "@react-spring/web";
 
 
 import ConstellationCanvas from "./components/ConstellationCanvas";

@@ -1,7 +1,6 @@
 // ─ IntroScene.tsx ─
 import { Canvas } from "@react-three/fiber";
 import {  useEffect, useState } from "react";
-import { useSpring } from "@react-spring/three";
 import ZodiacWheel from "./ZodiacWheel";
 import DustField from "./DustField";
 import NebulaEnvironment from "./NebulaEnvironment";
