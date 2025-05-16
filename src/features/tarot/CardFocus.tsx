@@ -4,7 +4,7 @@ import { getRandomReading } from "../../utils/tarotReadings";
 import styles from "./CardFocus.module.css";
 import { TAROT_FOR_SIGN } from "../../data/tarotMap";
 import { horoscopes } from "../../data/zodiac";
-import { useState, startTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 const capitalize = (s?: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
 const getCardImageSrc = (sign?: string) => {
@@ -36,12 +36,12 @@ export default function CardFocus() {
   const handleCardClick = () => {
     setClosing(true);
     setTimeout(() => {
-      startTransition(() => navigate('/', { 
+      navigate('/', { 
         state: { 
           introDone: true,
-          selectedSign: signInfo?.name // Pass the correct sign name back
+          selectedSign: signInfo?.name
         } 
-      }));
+      });
     }, 400);
   };
 
