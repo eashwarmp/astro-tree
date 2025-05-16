@@ -1,5 +1,6 @@
 export interface TarotCardProps {
   src: string;
+  sign: string;
   onClick: () => void;
 }
 

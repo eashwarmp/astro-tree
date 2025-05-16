@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { TarotCardProps } from "../../types/tarot";
 
-export default function TarotCard({ src, onClick }: TarotCardProps) {
+export default function TarotCard({ src, sign, onClick }: TarotCardProps) {
   return (
     <motion.img
+      layoutId={`card-${sign}`}
       className="tarot-thumb"
       src={src}
       onClick={onClick}

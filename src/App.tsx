@@ -1,9 +1,10 @@
 import { Suspense, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useSpring, animated } from "@react-spring/web";
 import { Environment } from "@react-three/drei";
 import { useLoader } from "@react-three/fiber";
 import { TextureLoader } from "three";
+import { motion } from "framer-motion";
 
 import ConstellationCanvas from "./components/ConstellationCanvas";
 import { horoscopes } from "./data/zodiac";
@@ -13,7 +14,8 @@ import TarotCard from "./features/tarot/TarotCard";
 import MainLayout from "./layouts/MainLayout";
 import { ZodiacSign } from "./types/tarot";
 import { TAROT_FOR_SIGN } from "./data/tarotMap";
-
+import ZodiacScene from "./components/ZodiacScene";
+import { Canvas } from "@react-three/fiber";
 
 import "./styles/App.css";
 
@@ -46,9 +48,12 @@ export function getTodayIndex() {
 
 export default function App() {
   const navigate = useNavigate();
-  const [introDone, setIntroDone] = useState(false);
+  const location = useLocation();
+  const [introDone, setIntroDone] = useState(location.state?.introDone || false);
   const [idx, setIdx] = useState(getTodayIndex());
   const signInfo = horoscopes[idx];
+  const isCardView = location.pathname.startsWith('/card/');
+  const cardSign = isCardView ? location.pathname.split('/').pop()?.toUpperCase() : null;
 
   const prev = () => setIdx((idx - 1 + horoscopes.length) % horoscopes.length);
   const next = () => setIdx((idx + 1) % horoscopes.length);
@@ -73,17 +78,30 @@ export default function App() {
     <MainLayout>
       <div className="three-bg">
         {!introDone && <IntroScene onDone={() => setIntroDone(true)} />}
-        {introDone && <ConstellationCanvas active={signInfo.name} />}
+        {introDone && !isCardView && <ConstellationCanvas active={signInfo.name} />}
+        {introDone && isCardView && (
+          <Canvas camera={{ position: [0, 0, 12], fov: 45 }}>
+            <NebulaEnvironment />
+            <ZodiacScene 
+              active={cardSign || signInfo.name}
+              skipIntro={true}
+            />
+          </Canvas>
+        )}
       </div>
 
-      <button className="nav left" onClick={prev}>
-        ◀︎
-      </button>
-      <button className="nav right" onClick={next}>
-        ▶︎
-      </button>
+      {!isCardView && (
+        <>
+          <button className="nav left" onClick={prev}>
+            ◀︎
+          </button>
+          <button className="nav right" onClick={next}>
+            ▶︎
+          </button>
+        </>
+      )}
 
-      {introDone && (
+      {introDone && !isCardView && (
         <div className="overlay" style={{ opacity: 1 }}>
           <h1>{signInfo.name}</h1>
           <small>{signInfo.dates}</small>
@@ -92,6 +110,7 @@ export default function App() {
           <div style={{ textAlign: "center", margin: "1.5rem 0" }}>
             <TarotCard
               src={`/assets/tarot/${TAROT_FOR_SIGN[signInfo.name]}`}
+              sign={signInfo.name.toLowerCase()}
               onClick={() => navigate(`/card/${signInfo.name.toLowerCase()}`)}
             />
           </div>
