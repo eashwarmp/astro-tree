@@ -1,10 +1,7 @@
-import { Suspense, useEffect, useState } from "react";
+import {  useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSpring, animated } from "@react-spring/web";
-import { Environment } from "@react-three/drei";
-import { useLoader } from "@react-three/fiber";
-import { TextureLoader } from "three";
-import { motion } from "framer-motion";
+import { useSpring } from "@react-spring/web";
+
 
 import ConstellationCanvas from "./components/ConstellationCanvas";
 import { horoscopes } from "./data/zodiac";
@@ -12,7 +9,6 @@ import IntroScene from "./components/IntroScene";
 import NebulaEnvironment from "./components/NebulaEnvironment";
 import TarotCard from "./features/tarot/TarotCard";
 import MainLayout from "./layouts/MainLayout";
-import { ZodiacSign } from "./types/tarot";
 import { TAROT_FOR_SIGN } from "./data/tarotMap";
 import ZodiacScene from "./components/ZodiacScene";
 import { Canvas } from "@react-three/fiber";
@@ -58,12 +54,7 @@ export default function App() {
   const prev = () => setIdx((idx - 1 + horoscopes.length) % horoscopes.length);
   const next = () => setIdx((idx + 1) % horoscopes.length);
 
-  const fade = useSpring({
-    key: idx,
-    from: { opacity: 0 },
-    to: { opacity: 1 },
-    config: { tension: 120, friction: 22 },
-  });
+
 
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {

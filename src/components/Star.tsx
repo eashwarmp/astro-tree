@@ -1,4 +1,4 @@
-import { SpriteMaterial, AdditiveBlending } from "three";
+import { AdditiveBlending } from "three";
 import { useLoader } from "@react-three/fiber";
 import { TextureLoader } from "three";
 

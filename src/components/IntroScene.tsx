@@ -1,11 +1,9 @@
 // ─ IntroScene.tsx ─
 import { Canvas } from "@react-three/fiber";
-import { Environment } from "@react-three/drei";
-import { Suspense, useEffect, useState } from "react";
-import { a, useSpring } from "@react-spring/three";
+import {  useEffect, useState } from "react";
+import { useSpring } from "@react-spring/three";
 import ZodiacWheel from "./ZodiacWheel";
 import DustField from "./DustField";
-import { getTodayIndex } from "./utils";
 import NebulaEnvironment from "./NebulaEnvironment";
 
 export default function IntroScene({ onDone }: { onDone: () => void }) {
@@ -27,12 +25,6 @@ export default function IntroScene({ onDone }: { onDone: () => void }) {
     }
   }, [phase]);
 
-  const fade = useSpring({
-    from: { opacity: 1 },
-    to: { opacity: 0 },
-    config: { duration: 1200 },
-    onRest: () => setPhase("wheel"),
-  });
 
   return (
     <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
