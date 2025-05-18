@@ -18,7 +18,7 @@ export default function CanvasRoot({
   return (
     <Canvas camera={{ position: [0, 0, 12], fov: 45 }}>
       <Suspense fallback={null}>
-        <Environment files="/textures/nebula/nebula.jpg" background />
+        <Environment files="/assets/nebula.jpg" background />
         <ambientLight intensity={1} />
 
         {!introDone && <IntroStage onDone={onIntroDone} />}

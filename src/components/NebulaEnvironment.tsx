@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 export default function NebulaEnvironment() {
   /* 1. Drei’s helper actually gives us the texture */
-  const nebulaTex = useEnvironment({ files: "/textures/nebula.jpg" });
+  const nebulaTex = useEnvironment({ files: "/assets/nebula.jpg" });
 
   /* 2. Grab the current three.js scene */
   const { scene } = useThree();

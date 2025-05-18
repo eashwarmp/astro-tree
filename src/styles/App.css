@@ -27,7 +27,7 @@ body,
   content: "";
   position: absolute;
   inset: 0;
-  background: url("/textures/nebula.jpg") center / cover no-repeat;
+  background: url("/assets/nebula.jpg") center / cover no-repeat;
   z-index: -1; /* stays under the canvas */
   filter: brightness(0.9); /* optional darken so stars pop */
 }
