@@ -1,54 +1,43 @@
-# React + TypeScript + Vite
+# astro-tree
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive 3D horoscope built with React Three Fiber. It opens on today's zodiac sign, draws each sign as a
+constellation against a nebula sky, and pairs it with a Major Arcana tarot card that expands into a full reading.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Intro scene.** A spinning zodiac wheel gives way to a field of 5,000 dust particles that scatter away from
+  your cursor. Clearing the dust reveals the sky.
+- **Constellations.** Each of the 12 signs is a set of 3D star positions joined by lines, rendered over a nebula
+  image used as both the scene background and its environment map.
+- **Starts on today's sign.** The sign is picked from the current date. Arrow keys or the on-screen buttons cycle
+  through the rest.
+- **Tarot cards.** Each sign maps to its traditional Major Arcana card (Aries → The Emperor, Pisces → The Moon, …).
+  Clicking the card opens `/card/:sign`, and a framer-motion shared-layout transition carries the card into a
+  focused view with the sign's reading.
 
-## Expanding the ESLint configuration
+## How it's built
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Rendering:** three.js through `@react-three/fiber`, with `@react-three/drei` helpers (`Line`, `Html`, `Points`,
+  `useEnvironment`)
+- **Motion:** framer-motion for route and card transitions; react-spring for 3D animation
+- **Routing:** React Router 7 with `AnimatePresence` so route changes animate in and out
+- **Tooling:** Vite, TypeScript, ESLint
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+The wheel's dark background is keyed out at load time: the texture is drawn to a canvas and near-black pixels get
+zero alpha, so the wheel floats over the nebula without a separately prepared image.
+
+## Run locally
+
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project layout
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+```
+src/components/      3D scenes: IntroScene, ZodiacWheel, DustField, ConstellationCanvas, NebulaEnvironment
+src/features/tarot/  TarotCard and the CardFocus route
+src/data/            Constellation coordinates, sign data, sign → tarot card map
+src/router.tsx       Animated routes
 ```
