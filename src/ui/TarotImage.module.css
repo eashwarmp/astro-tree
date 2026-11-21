@@ -1,0 +1,25 @@
+.standIn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 210, 122, 0.6);
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 35%, rgba(150, 110, 255, 0.35), transparent 70%), #140c2e;
+  color: var(--ink);
+  text-align: center;
+}
+
+.standIn span {
+  color: var(--gold);
+  font-size: 1.6em;
+}
+
+.standIn strong {
+  font-family: var(--font-label);
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}

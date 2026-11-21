@@ -1,0 +1,63 @@
+.root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* The nebula is plain CSS: cheaper than a WebGL environment map and visible even without WebGL. */
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #05040d url("/assets/nebula.jpg") center / cover no-repeat;
+  filter: brightness(0.8) saturate(1.05);
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  /* Drag and pinch belong to the 3D controls, not the browser's scroll and page zoom. */
+  touch-action: none;
+}
+
+/* Profile and sound controls: under the top nav bar on portrait screens, top-left of the sky on landscape. */
+.corner {
+  position: fixed;
+  z-index: 12;
+  top: calc(max(8px, env(safe-area-inset-top)) + 58px);
+  right: max(10px, env(safe-area-inset-right));
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.profile {
+  min-height: 40px;
+  max-width: 10rem;
+  padding: 0 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-label);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.profile span {
+  color: var(--gold);
+}
+
+@media (min-aspect-ratio: 6/5) {
+  .corner {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    right: auto;
+  }
+}
