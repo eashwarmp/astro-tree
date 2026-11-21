@@ -5,7 +5,9 @@
   --panel: rgba(9, 7, 24, 0.72);
   --panel-border: rgba(255, 255, 255, 0.1);
   --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
-  --font-body: "Crimson Text", Georgia, serif;
+  /* Small caps-style labels and tabs: plain Cinzel keeps them legible at small sizes. */
+  --font-label: "Cinzel", Georgia, serif;
+  --font-body: "Crimson Pro", "Crimson Text", Georgia, serif;
   --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   color-scheme: dark;

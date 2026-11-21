@@ -67,6 +67,34 @@ describe("daily horoscopes", () => {
     expect(a).toEqual(b);
   });
 
+  it("leads with the day's sky event", () => {
+    // 5 Nov 2025: Full Moon in Taurus, Scorpio's 7th house.
+    expect(dailyHoroscope("scorpio", new Date(2025, 10, 5)).headline).toBe(
+      "Full Moon in Taurus today, lighting up your 7th house of partnership.",
+    );
+    // 9 Nov 2025: Mercury stations retrograde in Sagittarius.
+    expect(dailyHoroscope("leo", new Date(2025, 10, 9)).headline).toContain("Mercury turns retrograde in Sagittarius");
+    expect(dailyHoroscope("leo", new Date(2025, 10, 12)).headline).toBeUndefined();
+  });
+
+  it("counts houses from a rising sign when given one", () => {
+    const d = new Date(2025, 10, 5); // Moon in Taurus
+    const plain = dailyHoroscope("pisces", d);
+    const rising = dailyHoroscope("pisces", d, { housesFrom: "taurus" });
+    expect(plain.moon.house).toBe(3);
+    expect(rising.moon.house).toBe(1);
+    expect(rising.housesFrom).toBe("taurus");
+  });
+
+  it("takes lucky values from numerology, the weekday ruler and planetary hours", () => {
+    const h = dailyHoroscope("leo", new Date(2026, 10, 21)); // a Saturday
+    expect(h.lucky.number).toBe(6);
+    expect(h.lucky.colorNote).toContain("Saturn");
+    expect(h.lucky.color).toBe("Charcoal");
+    expect(h.lucky.hoursNote).toContain("Sun");
+    expect(dailyHoroscope("leo", new Date(2026, 10, 21), { birthday: { month: 2, day: 14 } }).lucky.number).toBe(4);
+  });
+
   it("counts the Moon's house from the reader's sign", () => {
     // 5 Nov 2025: Full Moon in Taurus.
     const d = new Date(2025, 10, 5);

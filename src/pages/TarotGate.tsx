@@ -1,22 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { CARD_BACK } from "../data/tarot";
 import { useKeys } from "../hooks/useKeys";
 import { useToday } from "../hooks/useToday";
+import { asset } from "../lib/assets";
+import { PHASE_NAMES, moonLongitude, moonPhase, signOfLongitude } from "../lib/ephemeris";
+import { renderKeepsake, shareKeepsake } from "../lib/keepsake";
+import { sound } from "../lib/sound";
 import { SPREADS, interpret, saveDailyCard, savedDailyCard, shuffledDeck, type Drawn, type Spread } from "../lib/tarot";
 import { signById } from "../lib/zodiac";
+import TarotImage from "../ui/TarotImage";
 import styles from "./TarotGate.module.css";
 
-type Stage = "choose" | "shuffle" | "pick" | "reveal";
+type Stage = "choose" | "shuffle" | "cut" | "pick" | "reveal";
 
-const SHUFFLE_MS = 1700;
-const FLIP_GAP_MS = 650;
+/** How long the deck must be held before letting go counts as a shuffle. */
+const MIN_SHUFFLE_MS = 1000;
+const FLIP_SECONDS = 0.9;
 
 /**
- * The tarot gate: choose a spread, watch the deck shuffle, pick cards from a fan, then flip
- * them one by one into a reading tailored to the sign. Opens as a portal from wherever it was
- * summoned (the tapped constellation, or the centre of the screen).
+ * The tarot gate, a small ritual in five steps: choose a spread, hold the deck to shuffle it,
+ * cut it into three piles and choose one, pick cards from the fan, then turn each card over.
+ * The reading appears card by card and can be kept as an image. Opens as a portal from
+ * wherever it was summoned (the tapped constellation, or the centre of the screen).
  */
 export default function TarotGate() {
   const { sign: id } = useParams();
@@ -31,7 +38,12 @@ export default function TarotGate() {
   const [spread, setSpread] = useState<Spread>(SPREADS[0]);
   const [deck, setDeck] = useState<Drawn[]>([]);
   const [picked, setPicked] = useState<number[]>([]);
-  const [flipped, setFlipped] = useState(0);
+  const [turned, setTurned] = useState(0);
+  const [holding, setHolding] = useState(false);
+  const [tooQuick, setTooQuick] = useState(false);
+  const [keepsake, setKeepsake] = useState<Blob | null>(null);
+  const [shareState, setShareState] = useState<"idle" | "busy" | "done">("idle");
+  const holdStart = useRef(0);
   const fanSize = useFanSize();
   const closeButton = useRef<HTMLButtonElement>(null);
 
@@ -42,18 +54,9 @@ export default function TarotGate() {
     if (!sign) return;
     document.title = `Tarot gate · ${sign.name} · Astro Tree`;
     closeButton.current?.focus({ preventScroll: true });
+    sound.swell();
+    return () => sound.riffleStop();
   }, [sign]);
-
-  useEffect(() => {
-    if (stage === "shuffle") {
-      const t = setTimeout(() => setStage("pick"), SHUFFLE_MS);
-      return () => clearTimeout(t);
-    }
-    if (stage === "reveal" && flipped < spread.positions.length) {
-      const t = setTimeout(() => setFlipped((f) => f + 1), flipped === 0 ? 500 : FLIP_GAP_MS);
-      return () => clearTimeout(t);
-    }
-  }, [stage, flipped, spread]);
 
   // Opened from "Draw your card of the day": go straight into that spread.
   useEffect(() => {
@@ -63,29 +66,95 @@ export default function TarotGate() {
   }, []);
 
   const drawn = picked.map((i) => deck[i]);
+  const allTurned = stage === "reveal" && turned >= spread.positions.length;
   const notes = useMemo(
-    () => (sign && stage === "reveal" ? interpret(sign.id, drawn) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recompute only when a reading is revealed
-    [sign, stage, picked],
+    () => (sign && allTurned ? interpret(sign.id, drawn) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recompute only when a reading completes
+    [sign, allTurned, picked],
   );
+
+  // Render the keepsake as soon as the reading is complete: sharing has to happen right
+  // after a tap, so the image must already exist by then.
+  useEffect(() => {
+    if (!sign || !allTurned) return;
+    let cancelled = false;
+    setKeepsake(null);
+    setShareState("idle");
+    renderKeepsake({
+      sign,
+      date: today,
+      moonLine: moonLine(today),
+      spreadName: spread.name,
+      cards: drawn.map((d, i) => ({ drawn: d, label: spread.positions[i].label })),
+    })
+      .then((blob) => !cancelled && setKeepsake(blob))
+      .catch((error: unknown) => console.warn("Keepsake failed:", error));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per completed reading
+  }, [allTurned, picked]);
 
   if (!sign) return <Navigate to="/" replace />;
 
-  const begin = (s: Spread) => {
+  function begin(s: Spread) {
     setSpread(s);
     setPicked([]);
-    setFlipped(0);
-    const kept = s.id === "daily" ? savedDailyCard(sign.id, today) : null;
+    setTurned(0);
+    setTooQuick(false);
+    const kept = s.id === "daily" && sign ? savedDailyCard(sign.id, today) : null;
     if (kept) {
-      // Already drawn today: lay the same card down again instead of letting it be redrawn.
+      // Already drawn today: lay the same card down again, face up, instead of letting it be redrawn.
       setDeck([kept]);
       setPicked([0]);
-      preload(kept.card.image);
+      setTurned(1);
       setStage("reveal");
       return;
     }
     setDeck(shuffledDeck());
     setStage("shuffle");
+  }
+
+  const startHold = () => {
+    if (holding) return;
+    holdStart.current = performance.now();
+    setHolding(true);
+    setTooQuick(false);
+    sound.riffleStart();
+  };
+  const endHold = () => {
+    if (!holding) return;
+    setHolding(false);
+    sound.riffleStop();
+    if (performance.now() - holdStart.current < MIN_SHUFFLE_MS) {
+      setTooQuick(true);
+      return;
+    }
+    setDeck(shuffledDeck()); // the real shuffle happens on release
+    setStage("cut");
+  };
+  const holdKeys = {
+    onKeyDown: (e: KeyboardEvent) => {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+        e.preventDefault();
+        startHold();
+      }
+    },
+    onKeyUp: (e: KeyboardEvent) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        endHold();
+      }
+    },
+  };
+
+  const cut = (pile: number) => {
+    // Split into three piles; the chosen pile goes on top, the way a querent cuts a real deck.
+    const third = Math.ceil(deck.length / 3);
+    const piles = [deck.slice(0, third), deck.slice(third, third * 2), deck.slice(third * 2)];
+    setDeck([...piles[pile], ...piles.filter((_, i) => i !== pile).flat()]);
+    sound.tick();
+    setStage("pick");
   };
 
   const pick = (i: number) => {
@@ -97,9 +166,22 @@ export default function TarotGate() {
     if (next.length === spread.positions.length) setTimeout(() => setStage("reveal"), 700);
   };
 
+  const turn = (slot: number) => {
+    if (stage !== "reveal" || slot !== turned) return;
+    setTurned(slot + 1);
+    setTimeout(() => sound.tick(), (FLIP_SECONDS * 1000) / 2);
+  };
+
+  const share = async () => {
+    if (!keepsake) return;
+    setShareState("busy");
+    const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const result = await shareKeepsake(keepsake, `astro-tree-${sign.id}-${day}.png`, `My ${spread.name} reading for ${sign.name}`);
+    setShareState(result === "cancelled" ? "idle" : "done");
+  };
+
   const at = origin ? `${origin.x}px ${origin.y}px` : "50% 50%";
   const remaining = spread.positions.length - picked.length;
-  const allFlipped = stage === "reveal" && flipped >= spread.positions.length;
 
   return (
     <motion.div
@@ -128,9 +210,7 @@ export default function TarotGate() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <p className={styles.lede}>
-              Hold your question gently, {sign.name}. How many cards should answer it?
-            </p>
+            <p className={styles.lede}>Hold your question gently, {sign.name}. How many cards should answer it?</p>
             <div className={styles.spreads}>
               {SPREADS.map((s) => (
                 <button key={s.id} type="button" className={styles.spread} onClick={() => begin(s)}>
@@ -148,26 +228,84 @@ export default function TarotGate() {
         )}
 
         {stage === "shuffle" && (
-          <div className={styles.shuffle} aria-live="polite">
-            <div className={styles.stack}>
+          <div className={styles.shuffle}>
+            <button
+              type="button"
+              className={styles.stack}
+              aria-label="Hold to shuffle the deck"
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                startHold();
+              }}
+              onPointerUp={endHold}
+              onPointerCancel={endHold}
+              onContextMenu={(e) => e.preventDefault()}
+              {...holdKeys}
+            >
               {Array.from({ length: 8 }, (_, i) => (
                 <motion.img
                   key={i}
-                  src={`/assets/tarot/${CARD_BACK}`}
+                  src={asset(`assets/tarot/${CARD_BACK}`)}
                   alt=""
+                  draggable={false}
                   className={styles.back}
-                  initial={{ x: 0, rotate: 0 }}
-                  animate={{
-                    x: [0, (i % 2 ? 1 : -1) * (40 + i * 6), 0, (i % 2 ? -1 : 1) * 30, 0],
-                    rotate: [0, (i % 2 ? 1 : -1) * 8, 0, (i % 2 ? -1 : 1) * 5, 0],
-                    y: [0, -i * 1.5, 0, -i * 1.5, -i * 1.5],
-                  }}
-                  transition={{ duration: SHUFFLE_MS / 1000 - 0.2, delay: i * 0.03, ease: "easeInOut" }}
+                  style={{ y: -i * 1.5 }}
+                  animate={
+                    holding
+                      ? {
+                          x: [0, (i % 2 ? 1 : -1) * (36 + i * 5), 0, (i % 2 ? -1 : 1) * 26, 0],
+                          rotate: [0, (i % 2 ? 1 : -1) * 7, 0, (i % 2 ? -1 : 1) * 4, 0],
+                        }
+                      : { x: 0, rotate: 0 }
+                  }
+                  transition={
+                    holding
+                      ? { duration: 0.9, delay: i * 0.03, ease: "easeInOut", repeat: Infinity }
+                      : { type: "spring", stiffness: 260, damping: 22 }
+                  }
                 />
               ))}
-            </div>
-            <p className={styles.status}>The deck is listening…</p>
+            </button>
+            <p className={styles.status} aria-live="polite">
+              {holding
+                ? "Think of your question… let go when it feels right."
+                : tooQuick
+                  ? "A little longer: hold the deck until it feels right."
+                  : "Press and hold the deck to shuffle it."}
+            </p>
           </div>
+        )}
+
+        {stage === "cut" && (
+          <motion.div className={styles.cut} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p className={styles.status}>Cut the deck: choose the pile that calls to you.</p>
+            <div className={styles.piles}>
+              {[0, 1, 2].map((pile) => (
+                <motion.button
+                  key={pile}
+                  type="button"
+                  className={styles.pile}
+                  aria-label={`Pile ${pile + 1}`}
+                  onClick={() => cut(pile)}
+                  initial={{ x: (1 - pile) * 80, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 180, damping: 20, delay: pile * 0.06 }}
+                  whileHover={{ y: -8 }}
+                  whileFocus={{ y: -8 }}
+                >
+                  {[0, 1, 2].map((layer) => (
+                    <img
+                      key={layer}
+                      src={asset(`assets/tarot/${CARD_BACK}`)}
+                      alt=""
+                      draggable={false}
+                      style={{ transform: `translate(${layer * 2}px, ${-layer * 2}px)` }}
+                    />
+                  ))}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
         )}
 
         {(stage === "pick" || stage === "reveal") && (
@@ -177,13 +315,28 @@ export default function TarotGate() {
                 {spread.positions.map((pos, slot) => {
                   const fanIndex = picked[slot];
                   const d = fanIndex === undefined ? undefined : deck[fanIndex];
+                  const next = stage === "reveal" && slot === turned;
                   return (
                     <div key={pos.label} className={styles.slot}>
                       <div className={styles.slotFrame}>
                         {d && (
-                          <motion.div layoutId={`gate-card-${fanIndex}`} className={styles.slotCard} transition={{ type: "spring", stiffness: 160, damping: 22 }}>
-                            <FlipCard drawn={d} faceUp={stage === "reveal" && flipped > slot} />
-                          </motion.div>
+                          <motion.button
+                            type="button"
+                            layoutId={`gate-card-${fanIndex}`}
+                            className={styles.slotCard}
+                            onClick={() => turn(slot)}
+                            disabled={!next}
+                            data-next={next || undefined}
+                            aria-label={slot < turned ? `${pos.label}: ${d.card.name}` : `Turn over the ${pos.label} card`}
+                            animate={next ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+                            transition={
+                              next
+                                ? { scale: { duration: 2, repeat: Infinity, ease: "easeInOut" } }
+                                : { type: "spring", stiffness: 160, damping: 22 }
+                            }
+                          >
+                            <FlipCard drawn={d} faceUp={slot < turned} />
+                          </motion.button>
                         )}
                       </div>
                       <span className={styles.slotLabel}>{pos.label}</span>
@@ -202,61 +355,81 @@ export default function TarotGate() {
                   <Fan count={fanSize} picked={picked} onPick={pick} />
                 </>
               )}
+              {stage === "reveal" && !allTurned && (
+                <p className={styles.status} aria-live="polite">
+                  Tap the glowing card to turn it over.
+                </p>
+              )}
             </section>
           </LayoutGroup>
         )}
 
-        {allFlipped && (
-          <motion.section
-            className={styles.reading}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            aria-live="polite"
-          >
-            {drawn.map((d, i) => {
-              const side = d.reversed ? d.card.reversed : d.card.upright;
-              return (
-                <article key={d.card.id} className={styles.entry}>
-                  <span className={styles.position}>
-                    {spread.positions[i].label} · {spread.positions[i].frame}
-                  </span>
-                  <h2 className={styles.cardName}>
-                    {d.card.name}
-                    {d.reversed && <span className={styles.reversed}> reversed</span>}
-                  </h2>
-                  <ul className={styles.chips}>
-                    {side.keywords.map((k) => (
-                      <li key={k}>{k}</li>
-                    ))}
-                    {d.card.astrology && <li className={styles.astro}>{d.card.astrology}</li>}
-                  </ul>
-                  <p>{side.meaning}</p>
-                </article>
-              );
-            })}
-            {notes.length > 0 && (
-              <div className={styles.notes}>
-                <span className={styles.position}>What the spread says for {sign.name}</span>
-                <ul>
-                  {notes.map((n) => (
-                    <li key={n}>{n}</li>
-                  ))}
-                </ul>
-              </div>
+        {stage === "reveal" && turned > 0 && (
+          <section className={styles.reading} aria-live="polite">
+            <AnimatePresence initial={false}>
+              {drawn.slice(0, turned).map((d, i) => {
+                const side = d.reversed ? d.card.reversed : d.card.upright;
+                return (
+                  <motion.article
+                    key={d.card.id}
+                    className={styles.entry}
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <span className={styles.position}>
+                      {spread.positions[i].label} · {spread.positions[i].frame}
+                    </span>
+                    <h2 className={styles.cardName}>
+                      {d.card.name}
+                      {d.reversed && <span className={styles.reversed}> reversed</span>}
+                    </h2>
+                    <ul className={styles.chips}>
+                      {side.keywords.map((k) => (
+                        <li key={k}>{k}</li>
+                      ))}
+                      {d.card.astrology && <li className={styles.astro}>{d.card.astrology}</li>}
+                    </ul>
+                    <p>{side.meaning}</p>
+                  </motion.article>
+                );
+              })}
+            </AnimatePresence>
+
+            {allTurned && (
+              <motion.div
+                className={styles.after}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {notes.length > 0 && (
+                  <div className={styles.notes}>
+                    <span className={styles.position}>What the spread says for {sign.name}</span>
+                    <ul>
+                      {notes.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {spread.id === "daily" && (
+                  <p className={styles.status}>This is your card for today. A new one waits for you tomorrow.</p>
+                )}
+                <div className={styles.actions}>
+                  <button type="button" className={styles.primary} onClick={share} disabled={!keepsake || shareState === "busy"}>
+                    {shareState === "done" ? "Kept ✦" : keepsake ? "Keep this reading" : "Preparing keepsake…"}
+                  </button>
+                  <button type="button" className={styles.secondary} onClick={() => setStage("choose")}>
+                    {spread.id === "daily" ? "Try a deeper spread" : "Draw again"}
+                  </button>
+                  <button type="button" className={styles.secondary} onClick={close}>
+                    Back to the sky
+                  </button>
+                </div>
+              </motion.div>
             )}
-            {spread.id === "daily" && (
-              <p className={styles.status}>This is your card for today. A new one waits for you tomorrow.</p>
-            )}
-            <div className={styles.actions}>
-              <button type="button" className={styles.primary} onClick={() => setStage("choose")}>
-                {spread.id === "daily" ? "Try a deeper spread" : "Draw again"}
-              </button>
-              <button type="button" className={styles.secondary} onClick={close}>
-                Back to the sky
-              </button>
-            </div>
-          </motion.section>
+          </section>
         )}
       </div>
     </motion.div>
@@ -293,7 +466,7 @@ function Fan({ count, picked, onPick }: { count: number; picked: number[]; onPic
             whileHover={{ y: -14 }}
             whileFocus={{ y: -14 }}
           >
-            <img src={`/assets/tarot/${CARD_BACK}`} alt="" draggable={false} />
+            <img src={asset(`assets/tarot/${CARD_BACK}`)} alt="" draggable={false} />
           </motion.button>
         );
       })}
@@ -301,24 +474,36 @@ function Fan({ count, picked, onPick }: { count: number; picked: number[]; onPic
   );
 }
 
+/** Lifts slightly and glows as it passes edge-on, then settles face up. */
 function FlipCard({ drawn, faceUp }: { drawn: Drawn; faceUp: boolean }) {
   return (
     <motion.div
       className={styles.flip}
       initial={false}
-      animate={{ rotateY: faceUp ? 180 : 0 }}
-      transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+      animate={{
+        rotateY: faceUp ? 180 : 0,
+        y: faceUp ? [0, -12, 0] : 0,
+        scale: faceUp ? [1, 1.06, 1] : 1,
+      }}
+      transition={{ duration: FLIP_SECONDS, ease: [0.4, 0, 0.2, 1] }}
+      data-face-up={faceUp || undefined}
     >
-      <img className={styles.face} src={`/assets/tarot/${CARD_BACK}`} alt="" draggable={false} />
-      <img
+      <img className={styles.face} src={asset(`assets/tarot/${CARD_BACK}`)} alt="" draggable={false} />
+      <TarotImage
         className={`${styles.face} ${styles.front}`}
-        src={`/assets/tarot/${drawn.card.image}`}
+        image={drawn.card.image}
+        name={drawn.card.name}
         alt={faceUp ? `${drawn.card.name}${drawn.reversed ? ", reversed" : ""}` : ""}
         style={{ transform: `rotateY(180deg)${drawn.reversed ? " rotate(180deg)" : ""}` }}
-        draggable={false}
       />
     </motion.div>
   );
+}
+
+function moonLine(date: Date) {
+  const noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+  const sign = signById(signOfLongitude(moonLongitude(noon)))!;
+  return `Moon in ${sign.name}, ${PHASE_NAMES[moonPhase(noon).phase].toLowerCase()}`;
 }
 
 function useFanSize() {
@@ -334,5 +519,5 @@ function useFanSize() {
 
 function preload(image: string) {
   const img = new Image();
-  img.src = `/assets/tarot/${image}`;
+  img.src = asset(`assets/tarot/${image}`);
 }

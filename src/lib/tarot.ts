@@ -109,6 +109,17 @@ export function saveDailyCard(signId: SignId, date: Date, drawn: Drawn) {
   local.set(dailyKey(signId, date), `${drawn.card.id}:${drawn.reversed ? "r" : "u"}`);
 }
 
+/** Cards of the day drawn over the last `days` days, newest first. */
+export function dailyHistory(signId: SignId, today: Date, days = 30): { date: Date; drawn: Drawn }[] {
+  const out: { date: Date; drawn: Drawn }[] = [];
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    const drawn = savedDailyCard(signId, date);
+    if (drawn) out.push({ date, drawn });
+  }
+  return out;
+}
+
 function secureRandom() {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);

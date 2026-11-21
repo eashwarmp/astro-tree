@@ -1,0 +1,19 @@
+{
+  "name": "Astro Tree",
+  "short_name": "Astro Tree",
+  "description": "Today's horoscope among the real zodiac constellations, with a tarot card for every sign.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05040d",
+  "theme_color": "#05040d",
+  "categories": ["lifestyle", "entertainment"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

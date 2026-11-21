@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { prefersReducedMotion, session } from "../lib/env";
+import { local, prefersReducedMotion } from "../lib/env";
 
 export type IntroPhase = "wheel" | "dust" | "leaving" | "done";
 
-const SEEN_KEY = "astro-tree:intro-seen";
-const WHEEL_MS = 3000;
+const SEEN_KEY = "astro-tree:intro-seen-on";
+const todayKey = () => new Date().toDateString();
+const WHEEL_MS = 3600;
 const DUST_MAX_MS = 14000;
 const LEAVE_MS = 900;
 /** If the scene still hasn't loaded by now (slow network, weak GPU), skip straight to the sky. */
 const LOAD_TIMEOUT_MS = 8000;
 
-/** Runs the intro once per browser session: wheel → dust → leaving → done. */
+/** Runs the intro once a day, like a morning ritual: wheel → dust → leaving → done. */
 export function useIntro(skip: boolean) {
   const [phase, setPhase] = useState<IntroPhase>(() =>
-    skip || session.get(SEEN_KEY) || prefersReducedMotion() ? "done" : "wheel",
+    skip || local.get(SEEN_KEY) === todayKey() || prefersReducedMotion() ? "done" : "wheel",
   );
 
   // The wheel's clock only starts once its texture is on screen, so slow devices still see it spin.
@@ -32,7 +33,7 @@ export function useIntro(skip: boolean) {
     };
     const step = next[phase];
     if (!step) {
-      session.set(SEEN_KEY, "1");
+      local.set(SEEN_KEY, todayKey());
       return;
     }
     const t = setTimeout(() => setPhase(step[0]), step[1]);

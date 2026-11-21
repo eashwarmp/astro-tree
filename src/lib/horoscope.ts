@@ -1,5 +1,5 @@
 import { HOUSES, MOON_INTROS, RETROGRADE_LINES } from "../data/horoscope/houses";
-import { ELEMENT_TIPS, LUCKY_COLORS, TIP_CODAS, UNIVERSAL_TIPS } from "../data/horoscope/tips";
+import { ELEMENT_TIPS, TIP_CODAS, UNIVERSAL_TIPS } from "../data/horoscope/tips";
 import { PHASE_LINES, VOICES } from "../data/horoscope/voices";
 import { SIGNS, type SignId } from "../data/signs";
 import {
@@ -15,6 +15,7 @@ import {
   type Planet,
   type ZodiacSign,
 } from "./ephemeris";
+import { PLANET_NAMES, TRADITIONAL_RULER, dayRuler, formatClock, luckyColour, numerologyDay, planetaryHour } from "./lucky";
 
 // Readings are assembled from the real sky (which sign the Moon is in, its phase, the Sun's
 // house) plus hand-written phrases.
@@ -25,13 +26,32 @@ import {
 // coprime, so by the Chinese remainder theorem the whole combination doesn't recur for
 // 7 × 3 × 8 × 11 = 1848 days.
 
+export interface ReadingOptions {
+  /** Count houses from this sign instead (the reader's rising sign). */
+  housesFrom?: SignId;
+  /** Enables the personal numerology day number. */
+  birthday?: { month: number; day: number };
+  latitude?: number;
+}
+
 export interface DailyHoroscope {
   date: string;
   sign: SignId;
+  /** The sign houses were counted from (the sign itself unless a rising sign was given). */
+  housesFrom: SignId;
   moon: { sign: ZodiacSign; signName: string; phase: MoonPhase; phaseName: string; illumination: number; house: number };
+  /** Set on days when something happens in the sky: a new or full moon, the Sun changing sign, a retrograde station. */
+  headline?: string;
   reading: string;
   tip: string;
-  lucky: { number: number; color: string; hours: string };
+  lucky: {
+    number: number;
+    numberNote: string;
+    color: string;
+    colorNote: string;
+    hours: string;
+    hoursNote: string;
+  };
 }
 
 export interface MonthlyHoroscope {
@@ -50,12 +70,13 @@ const DAY_MS = 86_400_000;
 const nameOf = (sign: ZodiacSign) => SIGNS.find((s) => s.id === sign)!.name;
 const signIdx = (id: SignId) => ZODIAC_ORDER.indexOf(id);
 
-export function dailyHoroscope(id: SignId, date: Date): DailyHoroscope {
+export function dailyHoroscope(id: SignId, date: Date, options: ReadingOptions = {}): DailyHoroscope {
   const day = dayNumber(date);
+  const from = options.housesFrom ?? id;
   const noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
   const moonSign = signOfLongitude(moonLongitude(noon));
   const { phase, illumination } = moonPhase(noon);
-  const house = houseOf(moonSign, id);
+  const house = houseOf(moonSign, from);
   const voice = VOICES[id];
   const s = signIdx(id);
 
@@ -70,25 +91,74 @@ export function dailyHoroscope(id: SignId, date: Date): DailyHoroscope {
   const tips = [...ELEMENT_TIPS[voice.element], ...UNIVERSAL_TIPS];
   const [tipIdx, codaIdx] = variant(day, s * 733 + 5, [tips.length, TIP_CODAS.length]);
 
-  const rand = mulberry32(day * 12 + s);
-  const start = 6 + Math.floor(rand() * 15);
+  const ruler = TRADITIONAL_RULER[id];
+  const hour = planetaryHour(date, ruler, options.latitude);
+  const weekdayRuler = PLANET_NAMES[dayRuler(date)];
 
   return {
     date: isoDate(date),
     sign: id,
+    housesFrom: from,
     moon: { sign: moonSign, signName: nameOf(moonSign), phase, phaseName: PHASE_NAMES[phase], illumination, house },
+    headline: skyHeadline(date, from),
     reading,
     tip: `${tips[tipIdx]} ${TIP_CODAS[codaIdx]}`,
     lucky: {
-      number: 1 + Math.floor(rand() * 99),
-      color: LUCKY_COLORS[Math.floor(rand() * LUCKY_COLORS.length)],
-      hours: `${clock(start)}–${clock(start + 2)}`,
+      number: numerologyDay(date, options.birthday),
+      numberNote: options.birthday ? "Your personal day number" : "Today's universal day number",
+      color: luckyColour(date, voice.element),
+      colorNote: `${weekdayRuler}'s day, in a ${voice.element} shade`,
+      hours: `${formatClock(hour.start)}–${formatClock(hour.end)}`,
+      hoursNote: `The hour of ${PLANET_NAMES[ruler]}, your ruler`,
     },
   };
 }
 
+/** What, if anything, happens in the sky on this local day, framed for the reader's houses. */
+function skyHeadline(date: Date, from: SignId): string | undefined {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  const where = (sign: ZodiacSign) => {
+    const n = houseOf(sign, from);
+    return `your ${ordinal(n)} house of ${HOUSES[n - 1].topic}`;
+  };
+
+  const lunation = lunations(start, end)[0];
+  if (lunation) {
+    return lunation.kind === "full"
+      ? `Full Moon in ${nameOf(lunation.sign)} today, lighting up ${where(lunation.sign)}.`
+      : `New Moon in ${nameOf(lunation.sign)} today, a fresh start for ${where(lunation.sign)}.`;
+  }
+
+  const before = signOfLongitude(sunLongitude(start));
+  const after = signOfLongitude(sunLongitude(end));
+  if (before !== after) return `The Sun moves into ${nameOf(after)} today, turning the month toward ${where(after)}.`;
+
+  for (const planet of ["mercury", "venus", "mars"] as const) {
+    for (const r of yearRetrogrades(planet, date.getFullYear())) {
+      const name = planet[0].toUpperCase() + planet.slice(1);
+      if (sameDay(r.start, date)) return `${name} turns retrograde in ${nameOf(r.sign)} today, in ${where(r.sign)}.`;
+      if (sameDay(r.end, date)) return `${name} turns direct in ${nameOf(r.endSign)} today; things in ${where(r.endSign)} start moving again.`;
+    }
+  }
+  return undefined;
+}
+
+// Retrograde scans are the slowest part of the ephemeris; do each planet-year once.
+const retrogradeCache = new Map<string, ReturnType<typeof retrogrades>>();
+function yearRetrogrades(planet: Planet, year: number) {
+  const key = `${planet}-${year}`;
+  if (!retrogradeCache.has(key)) retrogradeCache.set(key, retrogrades(planet, new Date(year, 0, 1), new Date(year, 11, 31, 23)));
+  return retrogradeCache.get(key)!;
+}
+
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 /** `month` is 1–12. */
-export function monthlyHoroscope(id: SignId, year: number, month: number): MonthlyHoroscope {
+export function monthlyHoroscope(id: SignId, year: number, month: number, options: ReadingOptions = {}): MonthlyHoroscope {
+  const from = options.housesFrom ?? id;
   const first = new Date(year, month - 1, 1);
   const next = new Date(year, month, 1);
   const days = Math.round((next.getTime() - first.getTime()) / DAY_MS);
@@ -104,7 +174,7 @@ export function monthlyHoroscope(id: SignId, year: number, month: number): Month
     prev = sign;
   }
   const sunSign = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
-  const house = houseOf(sunSign, id);
+  const house = houseOf(sunSign, from);
   const h = HOUSES[house - 1];
   const monthName = first.toLocaleDateString("en-US", { month: "long" });
 
@@ -113,7 +183,7 @@ export function monthlyHoroscope(id: SignId, year: number, month: number): Month
     (ingress && ingress.sign !== sunSign ? `, then moves into ${nameOf(ingress.sign)} on ${short(ingress.date)}.` : ".");
 
   const events: MonthlyHoroscope["events"] = lunations(first, next).map((l) => {
-    const lh = HOUSES[houseOf(l.sign, id) - 1];
+    const lh = HOUSES[houseOf(l.sign, from) - 1];
     const label = l.kind === "new" ? "New Moon" : "Full Moon";
     return {
       date: isoDate(l.date),
@@ -123,7 +193,7 @@ export function monthlyHoroscope(id: SignId, year: number, month: number): Month
   });
   for (const planet of ["mercury", "venus", "mars"] as const) {
     for (const r of retrogrades(planet, first, new Date(next.getTime() - 1))) {
-      const rh = HOUSES[houseOf(r.sign, id) - 1];
+      const rh = HOUSES[houseOf(r.sign, from) - 1];
       const name = planet[0].toUpperCase() + planet.slice(1);
       const where = r.sign === r.endSign ? nameOf(r.sign) : `${nameOf(r.sign)} → ${nameOf(r.endSign)}`;
       events.push({
@@ -210,17 +280,6 @@ function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -228,11 +287,6 @@ function isoDate(d: Date) {
 function short(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function clock(hour: number) {
-  const h = ((hour + 11) % 12) + 1;
-  return `${h} ${hour < 12 || hour === 24 ? "AM" : "PM"}`;
 }
 
 function ordinal(n: number) {

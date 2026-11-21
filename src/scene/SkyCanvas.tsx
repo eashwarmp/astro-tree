@@ -15,6 +15,9 @@ interface Props {
   onIntroCleared: () => void;
   onSelect: (id: SignId) => void;
   onOpenGate: (origin: { x: number; y: number }) => void;
+  mySign?: SignId | null;
+  moon?: { sign: SignId; illumination: number; waxing: boolean };
+  onMoonTap?: () => void;
   className?: string;
 }
 
@@ -24,6 +27,7 @@ interface Props {
  */
 export default function SkyCanvas(props: Props) {
   const { activeId, todayId, introPhase, onIntroReady, onIntroCleared, onSelect, onOpenGate, className } = props;
+  const { mySign, moon, onMoonTap } = props;
   return (
     <Canvas
       className={className}
@@ -46,6 +50,9 @@ export default function SkyCanvas(props: Props) {
           revealed={introPhase === "done"}
           onSelect={onSelect}
           onOpenGate={onOpenGate}
+          mySign={mySign}
+          moon={moon}
+          onMoonTap={onMoonTap}
         />
       </Suspense>
     </Canvas>

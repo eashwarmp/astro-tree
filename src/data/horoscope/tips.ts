@@ -182,9 +182,3 @@ export const TIP_CODAS = [
   "It's more powerful than it looks.",
   "Let it set the tone for tomorrow.",
 ];
-
-export const LUCKY_COLORS = [
-  "Indigo", "Rose gold", "Emerald", "Ivory", "Midnight blue", "Coral", "Sage green", "Lavender",
-  "Burgundy", "Gold", "Silver", "Turquoise", "Amber", "Plum", "Sky blue", "Terracotta",
-  "Pearl white", "Crimson", "Teal", "Champagne", "Mint", "Charcoal", "Peach", "Violet",
-];

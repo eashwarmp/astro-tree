@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion";
 import { useKeys } from "../hooks/useKeys";
 import { signById } from "../lib/zodiac";
+import TarotImage from "../ui/TarotImage";
 import styles from "./CardPage.module.css";
 
 export default function CardPage() {
@@ -38,10 +39,11 @@ export default function CardPage() {
           <span aria-hidden="true">←</span> Back to {sign.name}
         </button>
 
-        <motion.img
+        <TarotImage
           layoutId={`tarot-${sign.id}`}
           className={styles.card}
-          src={`/assets/tarot/${tarot.image}`}
+          image={tarot.image}
+          name={tarot.name}
           alt={`${tarot.name} tarot card`}
           width={300}
           height={527}

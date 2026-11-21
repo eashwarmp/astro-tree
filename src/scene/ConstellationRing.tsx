@@ -6,6 +6,7 @@ import { SIGNS, type SignId } from "../data/signs";
 import { freeSkyArea } from "../lib/layout";
 import { signIndex } from "../lib/zodiac";
 import Constellation, { FIGURE_SIZE } from "./Constellation";
+import MoonMarker from "./MoonMarker";
 
 const RADIUS = 9;
 const STEP = (Math.PI * 2) / SIGNS.length;
@@ -15,13 +16,16 @@ interface Props {
   revealed: boolean;
   onSelect: (id: SignId) => void;
   onOpenGate: (origin: { x: number; y: number }) => void;
+  mySign?: SignId | null;
+  moon?: { sign: SignId; illumination: number; waxing: boolean };
+  onMoonTap?: () => void;
 }
 
 /**
  * The twelve constellations on a carousel. The ring turns so the active sign faces the
  * camera, centred in whatever part of the screen the HTML panels leave free.
  */
-export default function ConstellationRing({ activeId, revealed, onSelect, onOpenGate }: Props) {
+export default function ConstellationRing({ activeId, revealed, onSelect, onOpenGate, mySign, moon, onMoonTap }: Props) {
   const ring = useRef<Group>(null!);
   const anchor = useRef<Group>(null!);
   const reveal = useRef(0);
@@ -66,9 +70,13 @@ export default function ConstellationRing({ activeId, revealed, onSelect, onOpen
               <Constellation
                 figure={CONSTELLATIONS[sign.id]}
                 active={sign.id === activeId}
+                mine={sign.id === mySign}
                 reveal={reveal}
                 onSelect={(origin) => (sign.id === activeId ? onOpenGate(origin) : onSelect(sign.id))}
               />
+              {moon?.sign === sign.id && revealed && (
+                <MoonMarker illumination={moon.illumination} waxing={moon.waxing} onTap={() => onMoonTap?.()} />
+              )}
             </group>
           ))}
         </group>

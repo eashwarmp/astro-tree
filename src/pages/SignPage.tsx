@@ -1,22 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import type { SkyOutletContext } from "../app/SkyLayout";
 import { useKeys } from "../hooks/useKeys";
-import { useMySign } from "../hooks/useMySign";
+import { setPanelTab, usePanelTab } from "../hooks/usePanelTab";
+import { readingOptions, useProfile } from "../hooks/useProfile";
 import { useToday } from "../hooks/useToday";
-import { session } from "../lib/env";
 import { signIndex, stepSign } from "../lib/zodiac";
 import SignNav from "../ui/SignNav";
-import SignPanel, { type PanelTab } from "../ui/SignPanel";
-
-const TAB_KEY = "astro-tree:tab";
+import SignPanel from "../ui/SignPanel";
 
 export default function SignPage() {
   const { sign, select, openGate } = useOutletContext<SkyOutletContext>();
   const navigate = useNavigate();
   const today = useToday();
-  const [mine, setMine] = useMySign();
-  const [tab, setTab] = useState<PanelTab>(() => (session.get(TAB_KEY) as PanelTab | null) ?? "today");
+  const { profile, save } = useProfile();
+  const tab = usePanelTab();
+  const options = useMemo(() => readingOptions(profile, sign.id), [profile, sign.id]);
 
   // Which way the reader moved (shortest way round the zodiac), so the panel text slides along.
   const previous = useRef(sign.id);
@@ -36,10 +35,6 @@ export default function SignPage() {
     document.title = `${sign.name} · Astro Tree`;
   }, [sign]);
 
-  const changeTab = (t: PanelTab) => {
-    setTab(t);
-    session.set(TAB_KEY, t);
-  };
 
   return (
     <>
@@ -49,11 +44,13 @@ export default function SignPage() {
         today={today}
         tab={tab}
         direction={direction.current}
-        onTab={changeTab}
+        onTab={setPanelTab}
         onOpenCard={() => navigate(`/card/${sign.id}`)}
         onOpenGate={(spread) => openGate({ spread })}
-        isMine={mine === sign.id}
-        onToggleMine={() => setMine(mine === sign.id ? null : sign.id)}
+        isMine={profile?.sign === sign.id}
+        // Setting another sign keeps the rest of the profile (name, birthday, rising).
+        onToggleMine={() => profile?.sign !== sign.id && save({ ...profile, sign: sign.id })}
+        options={options}
       />
     </>
   );

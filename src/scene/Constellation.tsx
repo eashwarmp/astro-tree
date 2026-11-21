@@ -4,6 +4,7 @@ import { Line, useCursor, useTexture } from "@react-three/drei";
 import { AdditiveBlending, MathUtils, type Group, type Sprite, type SpriteMaterial } from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import type { ConstellationFigure } from "../data/constellations";
+import { asset } from "../lib/assets";
 import { projectStars, starSize } from "../lib/sky";
 
 export const FIGURE_SIZE = 3;
@@ -13,14 +14,16 @@ const IDLE_SCALE = 0.8;
 interface Props {
   figure: ConstellationFigure;
   active: boolean;
+  /** The reader's own sign: traced in gold. */
+  mine?: boolean;
   /** 0 while the intro is running, easing to 1 once the sky is revealed. */
   reveal: MutableRefObject<number>;
   /** Tapped: picks an idle constellation, or opens the tarot gate from the active one. */
   onSelect?: (origin: { x: number; y: number }) => void;
 }
 
-export default function Constellation({ figure, active, reveal, onSelect }: Props) {
-  const texture = useTexture("/assets/star.png");
+export default function Constellation({ figure, active, mine = false, reveal, onSelect }: Props) {
+  const texture = useTexture(asset("assets/star.png"));
   const points = useMemo(() => projectStars(figure.stars, FIGURE_SIZE), [figure]);
   const segments = useMemo(() => figure.edges.flatMap(([a, b]) => [points[a], points[b]]), [figure, points]);
   const sizes = useMemo(() => figure.stars.map((s) => starSize(s.mag)), [figure]);
@@ -57,10 +60,10 @@ export default function Constellation({ figure, active, reveal, onSelect }: Prop
 
   return (
     <group ref={group}>
-      <Line ref={line} points={segments} segments color="#d6e4ff" lineWidth={1.2} transparent depthWrite={false} />
+      <Line ref={line} points={segments} segments color={mine ? "#ffd27a" : "#d6e4ff"} lineWidth={mine ? 1.6 : 1.2} transparent depthWrite={false} />
       {points.map((p, i) => (
         <sprite key={figure.stars[i].name} ref={(el) => el && (sprites.current[i] = el)} position={p}>
-          <spriteMaterial map={texture} transparent depthWrite={false} blending={AdditiveBlending} />
+          <spriteMaterial map={texture} color={mine ? "#ffe2a0" : "white"} transparent depthWrite={false} blending={AdditiveBlending} />
         </sprite>
       ))}
       {/* Invisible hit area so the whole figure is easy to tap, not just the 1px lines. */}

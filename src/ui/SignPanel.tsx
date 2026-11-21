@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Sign } from "../data/signs";
-import { dailyHoroscope, monthlyHoroscope } from "../lib/horoscope";
-import { savedDailyCard } from "../lib/tarot";
+import { SIGNS, type Sign } from "../data/signs";
+import type { PanelTab } from "../hooks/usePanelTab";
+import { dailyHoroscope, monthlyHoroscope, type ReadingOptions } from "../lib/horoscope";
+import { dailyHistory, savedDailyCard } from "../lib/tarot";
 import styles from "./SignPanel.module.css";
-
-export type PanelTab = "today" | "month" | "tarot";
+import TarotImage from "./TarotImage";
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: "today", label: "Today" },
@@ -25,6 +25,8 @@ interface Props {
   onOpenGate: (spread?: "daily") => void;
   isMine: boolean;
   onToggleMine: () => void;
+  /** Personalisation for the reader's own sign (rising, birthday). */
+  options: ReadingOptions;
 }
 
 /**
@@ -32,20 +34,24 @@ interface Props {
  * sign changes; only its contents slide, which keeps quick left/right browsing smooth.
  */
 export default function SignPanel(props: Props) {
-  const { sign, today, tab, direction, onTab, onOpenCard, onOpenGate, isMine, onToggleMine } = props;
+  const { sign, today, tab, direction, onTab, onOpenCard, onOpenGate, isMine, onToggleMine, options } = props;
   const dailyCard = savedDailyCard(sign.id, today);
-  const daily = useMemo(() => dailyHoroscope(sign.id, today), [sign.id, today]);
+  const history = tab === "tarot" ? dailyHistory(sign.id, today, 30) : [];
+  const daily = useMemo(() => dailyHoroscope(sign.id, today, options), [sign.id, today, options]);
   const monthly = useMemo(
-    () => (tab === "month" ? monthlyHoroscope(sign.id, today.getFullYear(), today.getMonth() + 1) : null),
-    [sign.id, today, tab],
+    () => (tab === "month" ? monthlyHoroscope(sign.id, today.getFullYear(), today.getMonth() + 1, options) : null),
+    [sign.id, today, tab, options],
   );
+  const rising = options.housesFrom && SIGNS.find((s) => s.id === options.housesFrom);
 
+  // Browsing signs stays snappy; switching tabs gets a slightly slower, softer fade.
   const slide = {
     initial: { opacity: 0, x: 24 * direction },
     animate: { opacity: 1, x: 0 },
     exit: { opacity: 0, x: -24 * direction },
     transition: { duration: 0.18, ease: "easeOut" },
   } as const;
+  const fade = { ...slide, transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } } as const;
 
   return (
     <div className={styles.slot}>
@@ -95,7 +101,7 @@ export default function SignPanel(props: Props) {
 
         <div id="panel-body" className={styles.body} role="tabpanel" aria-labelledby={`tab-${tab}`} aria-live="polite">
           <AnimatePresence mode="popLayout" initial={false}>
-            <motion.div key={`${sign.id}-${tab}`} className={styles.content} {...slide}>
+            <motion.div key={`${sign.id}-${tab}`} className={styles.content} {...(tab === "today" ? slide : fade)}>
               {tab === "today" && (
                 <>
                   <p className={styles.meta}>
@@ -105,7 +111,14 @@ export default function SignPanel(props: Props) {
                       Moon in {daily.moon.signName}, {daily.moon.phaseName.toLowerCase()}
                     </span>
                   </p>
+                  {daily.headline && (
+                    <p className={styles.headline}>
+                      <span aria-hidden="true">✦ </span>
+                      {daily.headline}
+                    </p>
+                  )}
                   <p className={styles.reading}>{daily.reading}</p>
+                  {rising && <p className={styles.footnote}>Houses counted from your {rising.name} rising.</p>}
                   <div className={styles.tip}>
                     <span className={styles.label}>Tip of the day</span>
                     <p>{daily.tip}</p>
@@ -117,17 +130,20 @@ export default function SignPanel(props: Props) {
                       : "Draw your card of the day"}
                   </button>
                   <ul className={styles.lucky} aria-label="Lucky charms">
-                    <li>
+                    <li title={daily.lucky.numberNote}>
                       <span>Number</span>
                       {daily.lucky.number}
+                      <small>{daily.lucky.numberNote}</small>
                     </li>
-                    <li>
+                    <li title={daily.lucky.colorNote}>
                       <span>Colour</span>
                       {daily.lucky.color}
+                      <small>{daily.lucky.colorNote}</small>
                     </li>
-                    <li>
-                      <span>Power hours</span>
+                    <li title={daily.lucky.hoursNote}>
+                      <span>Your hours</span>
                       {daily.lucky.hours}
+                      <small>{daily.lucky.hoursNote}</small>
                     </li>
                   </ul>
                 </>
@@ -173,10 +189,11 @@ export default function SignPanel(props: Props) {
                 <>
                   <div className={styles.ownCard}>
                     <button type="button" className={styles.cardButton} onClick={onOpenCard} aria-label={`Open ${sign.tarot.name}`}>
-                      <motion.img
+                      <TarotImage
                         layoutId={`tarot-${sign.id}`}
                         className={styles.card}
-                        src={`/assets/tarot/${sign.tarot.image}`}
+                        image={sign.tarot.image}
+                        name={sign.tarot.name}
                         alt=""
                         width={300}
                         height={527}
@@ -197,6 +214,24 @@ export default function SignPanel(props: Props) {
                   <button type="button" className={styles.gate} onClick={() => onOpenGate()}>
                     <span aria-hidden="true">✦</span> Enter the tarot gate
                   </button>
+                  {history.length > 0 && (
+                    <div>
+                      <span className={styles.label}>Your recent cards of the day</span>
+                      <ol className={styles.history}>
+                        {history.map(({ date, drawn }) => (
+                          <li key={date.toDateString()} title={`${drawn.card.name}${drawn.reversed ? " (reversed)" : ""}`}>
+                            <TarotImage
+                              image={drawn.card.image}
+                              name={drawn.card.name}
+                              alt={`${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${drawn.card.name}${drawn.reversed ? ", reversed" : ""}`}
+                              className={drawn.reversed ? styles.flipped : undefined}
+                            />
+                            <span>{date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                   <p className={styles.hint}>
                     Draw from the full 78-card deck: one card for today, or three for a deeper spread. You can also tap
                     the glowing constellation.

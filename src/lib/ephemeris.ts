@@ -201,30 +201,43 @@ export interface Retrograde {
   endSign: ZodiacSign;
 }
 
-/** Retrograde periods that overlap [from, to], with stations found to the nearest day. */
+/** Retrograde periods that overlap [from, to], with each station refined to within about an hour. */
 export function retrogrades(planet: Planet, from: Date, to: Date): Retrograde[] {
-  const moving = (ms: number) => {
-    const delta = norm(planetLongitude(planet, new Date(ms + DAY_MS)) - planetLongitude(planet, new Date(ms)) + 180) - 180;
-    return delta < 0;
+  const lon = (ms: number) => planetLongitude(planet, new Date(ms));
+  // Apparent motion over the next six hours; negative means retrograde.
+  const speed = (ms: number) => norm(lon(ms + DAY_MS / 4) - lon(ms) + 180) - 180;
+  const retro = (ms: number) => speed(ms) < 0;
+  /** The moment between `a` (state `before`) and `b` where the motion flips. */
+  const station = (a: number, b: number, before: boolean) => {
+    for (let i = 0; i < 12; i++) {
+      const mid = (a + b) / 2;
+      if (retro(mid) === before) a = mid;
+      else b = mid;
+    }
+    return new Date(b);
   };
+
   // Look back far enough to catch a retrograde already underway on `from` (Mars's last ~80 days).
-  const start = from.getTime() - 90 * DAY_MS;
+  const begin = from.getTime() - 90 * DAY_MS;
   const out: Retrograde[] = [];
-  let current: number | null = moving(start) ? start : null;
-  for (let t = start; t <= to.getTime() + 90 * DAY_MS; t += DAY_MS) {
-    const retro = moving(t);
-    if (retro && current === null) current = t;
-    if (!retro && current !== null) {
+  let current: Date | null = retro(begin) ? new Date(begin) : null;
+  let prev = retro(begin);
+  for (let t = begin + DAY_MS; t <= to.getTime() + 90 * DAY_MS; t += DAY_MS) {
+    const now = retro(t);
+    if (now && !prev) current = station(t - DAY_MS, t, false);
+    if (!now && prev && current) {
+      const end = station(t - DAY_MS, t, true);
       const r = {
         planet,
-        start: new Date(current),
-        end: new Date(t),
-        sign: signOfLongitude(planetLongitude(planet, new Date(current))),
-        endSign: signOfLongitude(planetLongitude(planet, new Date(t))),
+        start: current,
+        end,
+        sign: signOfLongitude(lon(current.getTime())),
+        endSign: signOfLongitude(lon(end.getTime())),
       };
       if (r.end >= from && r.start <= to) out.push(r);
       current = null;
     }
+    prev = now;
     if (t > to.getTime() && current === null) break;
   }
   return out;

@@ -6,7 +6,7 @@ import SkyLayout from "./SkyLayout";
 
 export default function Router() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route element={<SkyLayout />}>
           <Route index element={<SignPage />} />
