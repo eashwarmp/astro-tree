@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { local, prefersReducedMotion } from "../lib/env";
+import { prefersReducedMotion } from "../lib/env";
 
 export type IntroPhase = "wheel" | "dust" | "leaving" | "done";
 
-const SEEN_KEY = "astro-tree:intro-seen-on";
-const todayKey = () => new Date().toDateString();
 const WHEEL_MS = 3600;
 const DUST_MAX_MS = 14000;
 const LEAVE_MS = 900;
 /** If the scene still hasn't loaded by now (slow network, weak GPU), skip straight to the sky. */
 const LOAD_TIMEOUT_MS = 8000;
 
-/** Runs the intro once a day, like a morning ritual: wheel → dust → leaving → done. */
+/**
+ * Runs the intro (wheel → dust → leaving → done) every time someone lands on the sky. It lives
+ * in the persistent layout, so coming back from a card or the tarot gate doesn't replay it.
+ * Skipped for deep links, reduced-motion users, and `?intro=off` (handy for testing).
+ */
 export function useIntro(skip: boolean) {
   const [phase, setPhase] = useState<IntroPhase>(() =>
-    skip || local.get(SEEN_KEY) === todayKey() || prefersReducedMotion() ? "done" : "wheel",
+    skip || prefersReducedMotion() || new URLSearchParams(location.search).get("intro") === "off" ? "done" : "wheel",
   );
 
   // The wheel's clock only starts once its texture is on screen, so slow devices still see it spin.
@@ -32,10 +34,7 @@ export function useIntro(skip: boolean) {
       leaving: ["done", LEAVE_MS],
     };
     const step = next[phase];
-    if (!step) {
-      local.set(SEEN_KEY, todayKey());
-      return;
-    }
+    if (!step) return;
     const t = setTimeout(() => setPhase(step[0]), step[1]);
     return () => clearTimeout(t);
   }, [phase, ready]);
