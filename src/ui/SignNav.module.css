@@ -1,0 +1,105 @@
+/* Mobile first: a bar across the top. Landscape: centred under the sky, left of the panel. */
+
+.nav {
+  position: fixed;
+  z-index: 11;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 4px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+}
+
+.strip {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  max-width: 480px;
+  justify-content: space-between;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strip li {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.arrow,
+.glyph {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+  border-radius: 999px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.arrow {
+  flex: none;
+  width: 40px;
+  height: 40px;
+}
+
+.glyph {
+  width: 100%;
+  max-width: 36px;
+  height: 36px;
+  font-size: 1.05rem;
+  font-family: var(--font-ui);
+}
+
+.arrow:hover,
+.glyph:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.glyph[aria-current="true"] {
+  color: #1a1206;
+  background: var(--gold);
+}
+
+.current {
+  display: none;
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+/* Too narrow for twelve tappable glyphs: show the sign's name between the arrows instead. */
+@media (max-width: 359px) {
+  .strip {
+    display: none;
+  }
+
+  .current {
+    display: block;
+  }
+}
+
+@media (min-aspect-ratio: 6/5) {
+  .nav {
+    top: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    /* Centre under the free sky: the panel takes min(440px, 46vw) + 24px on the right. */
+    left: max(12px, env(safe-area-inset-left));
+    right: calc(min(440px, 46vw) + 24px);
+    margin: 0 auto;
+    max-width: 560px;
+  }
+}

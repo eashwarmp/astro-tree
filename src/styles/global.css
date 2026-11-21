@@ -1,0 +1,58 @@
+:root {
+  --ink: #f4efff;
+  --ink-dim: rgba(244, 239, 255, 0.7);
+  --gold: #ffd27a;
+  --panel: rgba(9, 7, 24, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+  --font-body: "Crimson Text", Georgia, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  color-scheme: dark;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: #05040d;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

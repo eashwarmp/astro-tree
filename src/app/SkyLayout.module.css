@@ -1,0 +1,23 @@
+.root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* The nebula is plain CSS: cheaper than a WebGL environment map and visible even without WebGL. */
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #05040d url("/assets/nebula.jpg") center / cover no-repeat;
+  filter: brightness(0.8) saturate(1.05);
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  /* Drag and pinch belong to the 3D controls, not the browser's scroll and page zoom. */
+  touch-action: none;
+}

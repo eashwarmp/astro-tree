@@ -13,7 +13,7 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
-          'animation-vendor': ['framer-motion', '@react-spring/web', '@react-spring/three']
+          'animation-vendor': ['framer-motion']
         }
       }
     }
@@ -30,9 +30,7 @@ export default defineConfig({
       'three',
       '@react-three/fiber',
       '@react-three/drei',
-      'framer-motion',
-      '@react-spring/web',
-      '@react-spring/three'
+      'framer-motion'
     ]
   }
 })

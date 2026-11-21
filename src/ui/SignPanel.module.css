@@ -1,0 +1,174 @@
+/* Mobile first: a bottom sheet. Landscape screens get a side panel (see lib/layout.ts). */
+
+.slot {
+  position: fixed;
+  inset: auto 0 0 0;
+  max-height: 46dvh;
+  display: flex;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.panel {
+  pointer-events: auto;
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 1.1rem max(1rem, env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  background: var(--panel);
+  border-top: 1px solid var(--panel-border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+  container-type: inline-size;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.glyph {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  /* Sized to the panel, not the screen, so "Sagittarius" fits a narrow landscape panel. */
+  font-size: clamp(1.4rem, 9cqi, 2.6rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+}
+
+.dates {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+
+.body {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.reading {
+  flex: 1;
+  min-width: 0;
+}
+
+.today,
+.tip {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.08rem;
+  line-height: 1.5;
+}
+
+.tip {
+  margin-top: 0.8rem;
+  font-style: italic;
+  color: var(--gold);
+}
+
+.cardButton {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.card {
+  display: block;
+  width: 84px;
+  height: auto;
+  aspect-ratio: 300 / 527;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.25s;
+}
+
+.cardButton:hover .card,
+.cardButton:focus-visible .card {
+  box-shadow: 0 0 0 1px rgba(255, 210, 122, 0.6), 0 10px 30px rgba(255, 210, 122, 0.25);
+}
+
+.cardLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.78rem;
+  text-align: center;
+  max-width: 96px;
+}
+
+.cardLabel small {
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (min-aspect-ratio: 6/5) {
+  .slot {
+    inset: 0 0 0 auto;
+    width: min(440px, 46vw);
+    max-height: none;
+    align-items: center;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom)) 0;
+  }
+
+  .panel {
+    padding: clamp(1rem, 3vh, 1.8rem) clamp(1rem, 2.5vw, 2rem);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  .body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cardButton {
+    align-self: center;
+    margin-top: 0.4rem;
+  }
+
+  .card {
+    width: clamp(84px, 22vh, 150px);
+  }
+
+  .cardLabel {
+    max-width: none;
+  }
+}
+
+/* Short landscape screens (phones on their side): keep the card beside the text. */
+@media (min-aspect-ratio: 6/5) and (max-height: 520px) {
+  .body {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .card {
+    width: 72px;
+  }
+}
