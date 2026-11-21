@@ -15,7 +15,8 @@ interface Props {
   active: boolean;
   /** 0 while the intro is running, easing to 1 once the sky is revealed. */
   reveal: MutableRefObject<number>;
-  onSelect?: () => void;
+  /** Tapped: picks an idle constellation, or opens the tarot gate from the active one. */
+  onSelect?: (origin: { x: number; y: number }) => void;
 }
 
 export default function Constellation({ figure, active, reveal, onSelect }: Props) {
@@ -30,7 +31,7 @@ export default function Constellation({ figure, active, reveal, onSelect }: Prop
   const emphasis = useRef(active ? 1 : 0);
 
   const [hovered, setHovered] = useState(false);
-  useCursor(hovered && !active);
+  useCursor(hovered);
 
   useFrame(({ clock }, dt) => {
     const target = active ? 1 : hovered ? 0.35 : 0;
@@ -42,15 +43,16 @@ export default function Constellation({ figure, active, reveal, onSelect }: Prop
     line.current.material.opacity = MathUtils.lerp(0.1, 0.7, e) * r;
     sprites.current.forEach((sprite, i) => {
       (sprite.material as SpriteMaterial).opacity = MathUtils.lerp(0.35, 1, e) * r;
-      sprite.scale.setScalar(sizes[i] * (1 + 0.12 * Math.sin(t * (1.3 + (i % 5) * 0.3) + i * 2.1)));
+      // A slow, shallow twinkle so the sky stays calm behind the reading text.
+      sprite.scale.setScalar(sizes[i] * (1 + 0.06 * Math.sin(t * (0.65 + (i % 5) * 0.15) + i * 2.1)));
     });
   });
 
   const click = (e: ThreeEvent<MouseEvent>) => {
     // Ignore the click that ends a drag.
-    if (e.delta > 6 || active) return;
+    if (e.delta > 6) return;
     e.stopPropagation();
-    onSelect?.();
+    onSelect?.({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY });
   };
 
   return (

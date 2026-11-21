@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "deploy": "gh-pages -d dist",
     "vercel-build": "npm run build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "export:readings": "vite-node scripts/export-readings.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.88.0",

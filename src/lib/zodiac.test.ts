@@ -1,30 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { signById, signForDate, stepSign } from "./zodiac";
+import { signById, stepSign, sunSign } from "./zodiac";
 
-const on = (month: number, day: number) => signForDate(new Date(2026, month - 1, day)).id;
+const at = (iso: string) => sunSign(new Date(iso + "Z")).id;
 
-describe("signForDate", () => {
-  it("handles every cusp", () => {
-    expect(on(3, 20)).toBe("pisces");
-    expect(on(3, 21)).toBe("aries");
-    expect(on(4, 20)).toBe("taurus");
-    expect(on(5, 21)).toBe("gemini");
-    expect(on(6, 21)).toBe("cancer");
-    expect(on(7, 23)).toBe("leo");
-    expect(on(8, 23)).toBe("virgo");
-    expect(on(9, 23)).toBe("libra");
-    expect(on(10, 23)).toBe("scorpio");
-    expect(on(11, 21)).toBe("scorpio");
-    expect(on(11, 22)).toBe("sagittarius");
-    expect(on(12, 22)).toBe("capricorn");
-    expect(on(2, 19)).toBe("pisces");
+describe("sunSign", () => {
+  it("follows the real ingress times rather than fixed calendar dates", () => {
+    // 2026 ingresses (UT): Aries Mar 20 14:46; Sagittarius in the early hours of Nov 22.
+    expect(at("2026-03-20T12:00:00")).toBe("pisces");
+    expect(at("2026-03-20T18:00:00")).toBe("aries");
+    expect(at("2026-11-21T22:00:00")).toBe("scorpio");
+    expect(at("2026-11-22T12:00:00")).toBe("sagittarius");
   });
 
-  it("keeps early January in Capricorn and late January in Aquarius", () => {
-    expect(on(1, 1)).toBe("capricorn");
-    expect(on(1, 19)).toBe("capricorn");
-    expect(on(1, 20)).toBe("aquarius");
-    expect(on(12, 31)).toBe("capricorn");
+  it("puts early January in Capricorn and late January in Aquarius", () => {
+    expect(at("2026-01-01T12:00:00")).toBe("capricorn");
+    expect(at("2026-01-18T12:00:00")).toBe("capricorn");
+    expect(at("2026-01-21T12:00:00")).toBe("aquarius");
+    expect(at("2025-12-31T12:00:00")).toBe("capricorn");
   });
 });
 

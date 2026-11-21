@@ -14,6 +14,7 @@ interface Props {
   onIntroReady: () => void;
   onIntroCleared: () => void;
   onSelect: (id: SignId) => void;
+  onOpenGate: (origin: { x: number; y: number }) => void;
   className?: string;
 }
 
@@ -22,7 +23,7 @@ interface Props {
  * draws stars and lines; dpr is capped so high-density phones don't render 9× the pixels.
  */
 export default function SkyCanvas(props: Props) {
-  const { activeId, todayId, introPhase, onIntroReady, onIntroCleared, onSelect, className } = props;
+  const { activeId, todayId, introPhase, onIntroReady, onIntroCleared, onSelect, onOpenGate, className } = props;
   return (
     <Canvas
       className={className}
@@ -40,7 +41,12 @@ export default function SkyCanvas(props: Props) {
             onCleared={onIntroCleared}
           />
         )}
-        <ConstellationRing activeId={activeId} revealed={introPhase === "done"} onSelect={onSelect} />
+        <ConstellationRing
+          activeId={activeId}
+          revealed={introPhase === "done"}
+          onSelect={onSelect}
+          onOpenGate={onOpenGate}
+        />
       </Suspense>
     </Canvas>
   );

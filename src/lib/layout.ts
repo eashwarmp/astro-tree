@@ -6,7 +6,7 @@ export const SIDE_LAYOUT_MIN_ASPECT = 6 / 5;
 
 export const PANEL_MAX_WIDTH = 440;
 export const PANEL_WIDTH_FRACTION = 0.46;
-export const SHEET_HEIGHT_FRACTION = 0.46;
+export const SHEET_HEIGHT_FRACTION = 0.5;
 export const NAV_BAR_HEIGHT = 64;
 
 export interface SkyRect {

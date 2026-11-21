@@ -1,16 +1,12 @@
 import { SIGNS, type Sign, type SignId } from "../data/signs";
+import { signOfLongitude, sunLongitude } from "./ephemeris";
 
-/** The sign whose date range contains `date` (local time). */
-export function signForDate(date: Date): Sign {
-  const key = (date.getMonth() + 1) * 100 + date.getDate();
-  // Walk the signs from the latest start date in the calendar year back to the earliest;
-  // anything before Aquarius (Jan 20) still belongs to December's Capricorn.
-  const byStart = [...SIGNS].sort((a, b) => startKey(b) - startKey(a));
-  return byStart.find((s) => key >= startKey(s)) ?? byStart[0];
-}
-
-function startKey(sign: Sign) {
-  return sign.starts[0] * 100 + sign.starts[1];
+/**
+ * The sign the Sun is actually in at `date`. The calendar ranges in SIGNS are the usual
+ * approximations; the real ingress moves by a day or so from year to year.
+ */
+export function sunSign(date: Date): Sign {
+  return signById(signOfLongitude(sunLongitude(date)))!;
 }
 
 export function signById(id: string | null | undefined): Sign | undefined {

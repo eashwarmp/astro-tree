@@ -14,13 +14,14 @@ interface Props {
   activeId: SignId;
   revealed: boolean;
   onSelect: (id: SignId) => void;
+  onOpenGate: (origin: { x: number; y: number }) => void;
 }
 
 /**
  * The twelve constellations on a carousel. The ring turns so the active sign faces the
  * camera, centred in whatever part of the screen the HTML panels leave free.
  */
-export default function ConstellationRing({ activeId, revealed, onSelect }: Props) {
+export default function ConstellationRing({ activeId, revealed, onSelect, onOpenGate }: Props) {
   const ring = useRef<Group>(null!);
   const anchor = useRef<Group>(null!);
   const reveal = useRef(0);
@@ -66,7 +67,7 @@ export default function ConstellationRing({ activeId, revealed, onSelect }: Prop
                 figure={CONSTELLATIONS[sign.id]}
                 active={sign.id === activeId}
                 reveal={reveal}
-                onSelect={() => onSelect(sign.id)}
+                onSelect={(origin) => (sign.id === activeId ? onOpenGate(origin) : onSelect(sign.id))}
               />
             </group>
           ))}
